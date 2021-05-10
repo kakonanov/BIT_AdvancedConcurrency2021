@@ -5,8 +5,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RecursiveAction;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class ParallelUtils {
 	public static ForkJoinPool forkJoinPool;
@@ -25,10 +27,10 @@ public class ParallelUtils {
 	}
 
 	public void blockedParallelFor(int l, int r, Consumer<Integer> consumer, int blockSize) {
-		int max = (r - l) / blockSize + 1;
+		int blocksNum = (r - l) / blockSize + 1;
 		int remainder = (r - l) % blockSize;
-		parallelFor(0, max, (x) -> {
-			for (int i = 0; i < (x != max - 1 ? blockSize : remainder); ++i) {
+		parallelFor(0, blocksNum, (x) -> {
+			for (int i = 0; i < (x != blocksNum - 1 ? blockSize : remainder); ++i) {
 				consumer.accept(x*blockSize + i);
 			}
 		});
@@ -41,17 +43,54 @@ public class ParallelUtils {
 		return b;
 	}
 
-	public Integer[] scan(Integer[] arr, int l, int r, Consumer<Integer> consumer, int blockSize) {
+	public Integer[] scan(Integer[] arr, int l, int r, BiFunction<Integer, Integer, Integer> function, int blockSize) {
 		if (r - l <= blockSize) {
-			return scanSerial(arr, l, r, consumer);
+			return scanSerial(arr, l, r, function);
 		}
-		return arr;
+		int blocksNum = (r - l) / blockSize + 1;
+		Integer[] sums = new Integer[blocksNum];
+		sums[0] = 0;
+		blockedParallelFor(0, blocksNum - 1, (x) -> {
+			sums[x + 1] = reduceSerial(arr,
+					x * blockSize,
+					(x + 1) * blockSize,
+					Integer::sum);
+		}, blockSize);
+		Integer[] scannedSums = scan(sums, 1, blocksNum, function, blockSize);
+		System.out.println(Arrays.toString(scannedSums));
+		Integer[] answer = new Integer[r - l + 2];
+		blockedParallelFor(l - 1, r + 1, (x) -> {
+			System.out.println(x);
+			if (x % blockSize == 0)
+				answer[x] = scannedSums[x/blockSize];
+			else
+				answer[x] = function.apply(answer[x - 1], arr[x - 1]);
+		}, blockSize);
+		return answer;
 	}
 
-	public Integer[] scanSerial(Integer[] arr, int l, int r, Consumer<Integer> consumer) {
-		for (int i = l; i < r; ++i) {
+	public Integer[] filter(Integer[] arr, int l, int r, Predicate<Integer> predicate) {
+		Integer[] flags = map(arr, l, r, (x) -> {
 
+		});
+		return flags;
+	}
+
+	public Integer[] scanSerial(Integer[] arr, int l, int r, BiFunction<Integer, Integer, Integer> biFunction) {
+		Integer[] b = new Integer[r - l + 1];
+		b[0] = arr[l - 1];
+		for (int i = l; i < r; ++i) {
+			b[i - l + 1] = biFunction.apply(arr[i], b[i - l]);
 		}
+		return b;
+	}
+
+	public Integer reduceSerial(Integer[] arr, int l, int r, BiFunction<Integer, Integer, Integer> biFunction) {
+		int res = 0;
+		for (int i = l; i < r; ++i) {
+			res = biFunction.apply(arr[i], res);
+		}
+		return res;
 	}
 
 	public static class ParallelForAction extends RecursiveAction {
@@ -86,8 +125,9 @@ public class ParallelUtils {
 //		parallelUtils.parallelFor(0, r, (x) -> ++arr[x]);
 //		parallelUtils.blockedParallelFor(0, r, (x) -> arr[x + 1] += arr[x], 3);
 //		Integer[] b = parallelUtils.map(arr, 0, r, (x) -> x + 1, 3);
-		parallelUtils.scan(arr, 0, r, (x) -> ++arr[x], 3);
+//		Integer[] b = parallelUtils.scan(arr, 1, r, Integer::sum, 3);
+		Integer[] b = parallelUtils.filter(arr, 0, r,);
 		System.out.println(Arrays.toString(arr));
-//		System.out.println(Arrays.toString(b));
+		System.out.println(Arrays.toString(b));
 	}
 }

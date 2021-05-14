@@ -1,13 +1,13 @@
-#Курсовая 1 - Quicksort
+# Курсовая 1 - Quicksort
 ***
-##Классы:
+## Классы:
 
 * ParallelUtils - содержит реализации функций parallelFor, blockedParallelFor, map, scan, filter
 * SerialUtils - их последовальные аналоги
 * QuickSortSerial и QuickSortParallel - реализации сортировок
 * Тест QuickSortTest - cодержит два теста для замера времени выполнения а также валидности сортировки массива
 ***
-##Вывод:
+## Вывод:
  
 1. Total execution time - serial: 7699ms
 2. Total execution time - parallel with 1 threads: 10527ms
